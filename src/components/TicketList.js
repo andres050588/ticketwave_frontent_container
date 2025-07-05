@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom"
 import axios_api from "../api/api.js"
 import TicketCard from "./TicketCard.js"
 
-export default function TicketList({ title = "Biglietti", limit = null, showSeeAllButton = false }) {
+export default function TicketList({ title = "Biglietti", limit = null, showSeeAllButton = false, ticketType = "disponibili", apiEndpoint = null }) {
     const [tickets, setTickets] = useState([])
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState(null)
@@ -13,12 +13,27 @@ export default function TicketList({ title = "Biglietti", limit = null, showSeeA
     useEffect(() => {
         const fetchTickets = async () => {
             try {
-                const response = await axios_api.get("/tickets")
-                const allTickets = response.data
+                let url = apiEndpoint // apiEndpoint se passato
 
-                if (!Array.isArray(response.data)) {
-                    console.error("❌ Non è un array! Hai ricevuto:", response.data)
+                if (!url) {
+                    // fallback a ticketType
+                    if (ticketType === "acquistati") {
+                        url = "/orders/purchased" // endpoint per biglietti acquistati
+                    } else if (ticketType === "in_vendita") {
+                        url = "/tickets/mytickets" // endpoint per biglietti in vendita dell’utente
+                    } else {
+                        url = "/tickets" // biglietti disponibili
+                    }
                 }
+
+                const response = await axios_api.get(url)
+                let allTickets = response.data
+
+                if (!Array.isArray(allTickets)) {
+                    console.error("❌ Non è un array! Hai ricevuto:", allTickets)
+                    allTickets = []
+                }
+
                 setTickets(limit ? allTickets.slice(0, limit) : allTickets)
             } catch (err) {
                 setError("Errore durante il caricamento dei biglietti.")
@@ -27,7 +42,7 @@ export default function TicketList({ title = "Biglietti", limit = null, showSeeA
             }
         }
         fetchTickets()
-    }, [limit])
+    }, [limit, ticketType, apiEndpoint])
 
     return (
         <section className="py-4">
@@ -45,7 +60,17 @@ export default function TicketList({ title = "Biglietti", limit = null, showSeeA
                 </Row>
                 {showSeeAllButton && (
                     <div className="text-center mt-4">
-                        <Button variant="outline-primary" onClick={() => navigate("/tickets")}>
+                        <Button
+                            variant="outline-primary"
+                            onClick={() => {
+                                if (apiEndpoint === "/orders/purchased") {
+                                    navigate("/orders/purchased")
+                                } else {
+                                    // fallback normale
+                                    navigate(`/tickets/${ticketType}`)
+                                }
+                            }}
+                        >
                             Vedi tutti i biglietti →
                         </Button>
                     </div>
